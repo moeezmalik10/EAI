@@ -1,0 +1,95 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("POSTGRES_PRISMA_URL")
+  directUrl = env("POSTGRES_URL_NON_POOLING")
+}
+
+// Volumes are not stored as their own table — they're a grouping of Issues
+// by volumeNumber, computed on read (see volumesController). This avoids a
+// second table that would just duplicate volumeNumber/year already on Issue.
+
+model Issue {
+  id            String    @id @default(cuid())
+  ojsIssueId    String    @unique
+  volumeNumber  Int
+  issueNumber   Int
+  year          Int
+  title         String
+  series        String?
+  dateRange     String?
+  coverImage    String?
+  publishedDate DateTime?
+  sourceUrl     String?
+  articles      Article[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([volumeNumber, issueNumber])
+}
+
+// authors is a JSON array of { name, affiliation } — mirrors the original
+// embedded Mongoose subdocument shape the frontend already expects.
+model Article {
+  id            String    @id @default(cuid())
+  ojsArticleId  String    @unique
+  title         String
+  authors       Json
+  abstract      String    @db.Text
+  keywords      String[]
+  volumeNumber  Int?
+  issueNumber   Int?
+  year          Int?
+  firstPage     Int?
+  lastPage      Int?
+  doi           String?   @unique
+  section       String?   @default("Articles")
+  publishedDate DateTime?
+  pdfUrl        String?
+  sourceUrl     String?
+  issueId       String?
+  issue         Issue?    @relation(fields: [issueId], references: [id])
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([volumeNumber])
+  @@index([year])
+}
+
+model Author {
+  id           String   @id @default(cuid())
+  name         String   @unique
+  affiliations String[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// links is a JSON object of { orcid?, linkedin?, googleScholar?, researchGate? }
+model EditorialBoardMember {
+  id          String   @id @default(cuid())
+  name        String
+  role        String   @default("Editorial Board")
+  affiliation String?
+  country     String?
+  email       String?
+  links       Json?
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Submission {
+  id                 String   @id @default(cuid())
+  title              String
+  abstract           String   @db.Text
+  authors            String
+  keywords           String[]
+  correspondingEmail String
+  manuscriptFile     Json?
+  status             String   @default("submitted")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
